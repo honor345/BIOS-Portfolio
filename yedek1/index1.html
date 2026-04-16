@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Onur Sözeri - Siber Güvenlik Uzmanı & Full Stack Geliştirici (OWASP, PHP, C#, ASP.NET Core, DevOps, Sunucu Mimari)">
+    <meta name="keywords" content="Onur Sözeri, Siber Güvenlik, Full Stack, Pentest, OWASP Top 10, ASP.NET Core, PHP, MySQL, Linux Sunucu, Docker, BIOS Theme">
+    <meta name="author" content="Onur Sözeri">
+    <title>Onur Sözeri | PRIME B650M-R BIOS System UI</title>
+    
+    <!-- Modern Tech Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bios-bg: #090e14;
+            --bios-panel: rgba(17, 26, 36, 0.85);
+            --bios-border: #1e3042;
+            --bios-cyan: #00c3ff;
+            --bios-cyan-glow: rgba(0, 195, 255, 0.25);
+            --bios-white: #e4eff5;
+            --bios-text: #8aa4ba;
+            --bios-red: #e01b22;
+        }
+
+        /* Reset & Scrollbar */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--bios-white);
+            background-color: var(--bios-bg);
+            overflow-x: hidden;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bios-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--bios-cyan); }
+
+        /* Animated Grid Background */
+        @keyframes panGrid {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(30px); }
+        }
+        .grid-bg {
+            position: fixed; inset: 0; 
+            background-image: 
+                linear-gradient(rgba(0, 195, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 195, 255, 0.04) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+            animation: panGrid 4s linear infinite;
+        }
+
+        /* ---------------- BOOT SCREEN ---------------- */
+        #boot-screen {
+            position: fixed; inset: 0; background: #000; color: #a8b2b8;
+            font-family: 'Share Tech Mono', monospace; font-size: 18px;
+            z-index: 9999; padding: 40px; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column;
+        }
+        .ami-title {
+            display: flex; align-items: center; gap: 30px;
+            margin-bottom: 40px; 
+        }
+        .ami-brand-text {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 55px; /* scaled slightly for better fit */
+            color: #ffffff;
+            line-height: 0.95;
+            font-weight: normal;
+        }
+        .boot-cursor {
+            display: inline-block; width: 12px; height: 18px; background: #a8b2b8;
+            animation: blink 1s step-end infinite; vertical-align: bottom;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* ---------------- BIOS UI ---------------- */
+        #bios-ui {
+            display: none;
+            position: relative;
+        }
+
+        /* Header Navigation */
+        header.navbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: 90px; background: rgba(9, 14, 20, 0.95);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-bottom: 2px solid var(--bios-border);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 50px; z-index: 1000; transition: all 0.4s ease;
+        }
+        header::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+            height: 2px; background: linear-gradient(90deg, transparent, var(--bios-cyan), transparent);
+            opacity: 0.5;
+        }
+        
+        .brand .brand-name {
+            font-family: 'Orbitron', sans-serif; font-size: 34px; letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .brand .blue { color: var(--bios-cyan); font-weight: 900; text-shadow: 0 0 15px var(--bios-cyan-glow); }
+        .brand .white { color: #fff; font-weight: 400; }
+        .brand .b-sub {
+            font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--bios-text);
+            letter-spacing: 3px; display: block; margin-top: -2px;
+        }
+
+        .nav-links a {
+            color: var(--bios-text); text-decoration: none; font-size: 18px; font-weight: 600;
+            margin-left: 45px; transition: all 0.3s ease; position: relative; text-transform: uppercase;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--bios-cyan); text-shadow: 0 0 10px var(--bios-cyan-glow);
+        }
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: -8px; left: 0; width: 0%; height: 2px;
+            background: var(--bios-cyan); transition: width 0.3s ease; box-shadow: 0 0 8px var(--bios-cyan);
+        }
+        .nav-links a.active::after, .nav-links a:hover::after { width: 100%; }
+
+        /* Main Sections Layout */
+        main { padding-top: 130px; padding-bottom: 80px; }
+        section, footer { padding: 80px 40px; max-width: 1300px; margin: 0 auto; min-height: 70vh; }
+        
+        .section-title {
+            font-family: 'Orbitron', sans-serif; font-size: 32px; color: var(--bios-white);
+            border-left: 5px solid var(--bios-cyan); padding-left: 20px; margin-bottom: 50px;
+            text-transform: uppercase; letter-spacing: 3px; display: flex; align-items: center;
+        }
+        .section-title::after {
+            content: ''; flex: 1; height: 1px; background: var(--bios-border); margin-left: 30px;
+            box-shadow: 0 0 10px var(--bios-cyan-glow);
+        }
+
+        /* Bios Panel Components */
+        .card-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 35px;
+        }
+        .bios-panel {
+            background: var(--bios-panel);
+            border: 1px solid var(--bios-border);
+            padding: 30px; position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%);
+        }
+        .bios-panel:hover {
+            border-color: var(--bios-cyan); transform: translateY(-5px);
+            box-shadow: inset 0 0 15px rgba(0, 195, 255, 0.05), 0 15px 40px rgba(0, 195, 255, 0.15);
+        }
+        .bios-panel::after {
+            content: ''; position: absolute; bottom: 0; right: 0; width: 25px; height: 25px;
+            background: var(--bios-cyan); clip-path: polygon(100% 0, 0 100%, 100% 100%);
+            opacity: 0.8; transition: opacity 0.3s;
+        }
+        .bios-panel:hover::after { opacity: 1; box-shadow: 0 0 15px var(--bios-cyan); }
+        .bios-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 40px; height: 2px;
+            background: var(--bios-cyan);
+        }
+        
+        .panel-header {
+            font-family: 'Share Tech Mono', monospace; font-size: 18px; color: var(--bios-cyan);
+            margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--bios-border); padding-bottom: 12px;
+        }
+        .panel-header i { margin-right: 10px; }
+        .status-ok { color: #0cf574; font-size: 14px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(12, 245, 116, 0.4); }
+
+        /* HERO - ANASAYFA */
+        #anasayfa .hero-content {
+            display: flex; flex-direction: column; justify-content: center; height: 100%;
+        }
+        .system-specs-bar {
+            display: inline-flex; gap: 25px; font-family: 'Share Tech Mono', monospace;
+            background: rgba(0,0,0,0.4); padding: 10px 25px; border: 1px solid var(--bios-border);
+            color: var(--bios-cyan); margin-bottom: 30px; align-self: flex-start;
+        }
+        .main-headline {
+            font-family: 'Orbitron', sans-serif; font-size: 70px; font-weight: 900;
+            color: #fff; line-height: 1.1; margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        .sub-headline {
+            font-size: 24px; color: var(--bios-text); margin-bottom: 60px; max-width: 800px;
+            line-height: 1.5; font-weight: 500;
+        }
+        .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .status-box {
+            background: rgba(0,0,0,0.3); border: 1px solid var(--bios-border); padding: 25px;
+            display: flex; align-items: center; gap: 20px; transition: all 0.3s;
+        }
+        .status-box:hover { background: rgba(0, 195, 255, 0.05); border-color: var(--bios-cyan); }
+        .status-box i { font-size: 40px; color: var(--bios-cyan); }
+        .s-info { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--bios-text); }
+        .s-info span { font-size: 20px; color: #fff; font-family: 'Rajdhani', sans-serif; font-weight: bold; }
+
+        /* HAKKIMDA SECTION */
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 20px 15px; border-bottom: 1px solid var(--bios-border); }
+        .info-table tr:last-child td { border-bottom: none; }
+        .info-table .lbl { font-family: 'Share Tech Mono', monospace; color: var(--bios-cyan); width: 25%; font-size: 18px; }
+        .info-table .val { color: var(--bios-white); font-size: 18px; line-height: 1.8; text-align: justify; }
+
+        /* UZMANLIK SECTION */
+        .skill-list { list-style: none; }
+        .skill-list li {
+            padding: 12px 0; border-bottom: 1px dotted rgba(255,255,255,0.08);
+            font-size: 17px; position: relative; padding-left: 25px;
+            transition: all 0.2s;
+        }
+        .skill-list li:hover { color: var(--bios-cyan); transform: translateX(5px); }
+        .skill-list li::before {
+            content: '>'; position: absolute; left: 0; color: var(--bios-cyan);
+            font-family: 'Share Tech Mono', monospace; font-weight: bold;
+        }
+        .skill-list li:last-child { border-bottom: none; }
+
+        /* PORTFOLYO SECTION */
+        .proj-card .proj-icon {
+            font-size: 55px; color: var(--bios-cyan); text-align: center; margin: 25px 0;
+            filter: drop-shadow(0 0 10px rgba(0, 195, 255, 0.3)); transition: transform 0.4s;
+        }
+        .proj-card:hover .proj-icon { transform: scale(1.1); }
+        .proj-card h4 { font-family: 'Share Tech Mono', monospace; font-size: 24px; text-align: center; margin-bottom: 15px; color: #fff; }
+        .proj-card p { text-align: center; color: var(--bios-text); font-size: 17px; line-height: 1.6; }
+
+        /* ILETISIM / FOOTER */
+        footer { margin-bottom: 0; min-height: auto; padding-bottom: 80px; }
+        .exit-desc { font-size: 19px; margin-bottom: 30px; color: var(--bios-text); }
+        .contact-list a {
+            display: flex; align-items: center; gap: 15px; padding: 20px 25px; margin: 15px 0;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--bios-border);
+            color: var(--bios-white); text-decoration: none; font-family: 'Share Tech Mono', monospace;
+            font-size: 18px; transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .contact-list a i { font-size: 24px; color: var(--bios-cyan); width: 30px; text-align: center; }
+        .contact-list a::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 195, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+        .contact-list a:hover {
+            background: rgba(0, 195, 255, 0.05); border-color: var(--bios-cyan);
+            color: #fff; transform: translateX(10px); text-shadow: 0 0 5px var(--bios-cyan-glow);
+        }
+        .contact-list a:hover::before { left: 100%; }
+        .footer-bottom {
+            margin-top: 40px; border-top: 1px solid var(--bios-border); padding-top: 20px;
+            font-family: 'Share Tech Mono', monospace; color: #5c748a; text-align: center;
+            letter-spacing: 2px;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 992px) {
+            header.navbar { padding: 0 20px; flex-direction: column; justify-content: center; height: auto; padding-bottom: 15px; }
+            .brand { margin-top: 15px; margin-bottom: 15px; text-align: center;}
+            .nav-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+            .nav-links a { margin-left: 10px; margin-right: 10px; font-size: 15px; }
+            .main-headline { font-size: 45px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <!-- BOOT SEQUENCE -->
+    <div id="boot-screen">
+        <div class="ami-title">
+            <svg width="220" height="130" viewBox="0 0 160 110">
+                <defs>
+                    <clipPath id="stripeClip">
+                        <rect y="10" width="160" height="6" />
+                        <rect y="20" width="160" height="6" />
+                        <rect y="30" width="160" height="6" />
+                        <rect y="40" width="160" height="6" />
+                        <rect y="50" width="160" height="6" />
+                        <rect y="60" width="160" height="6" />
+                        <rect y="70" width="160" height="6" />
+                        <rect y="80" width="160" height="6" />
+                        <rect y="90" width="160" height="6" />
+                        <rect y="100" width="160" height="6" />
+                    </clipPath>
+                </defs>
+                <g clip-path="url(#stripeClip)">
+                    <polygon points="80,0 160,110 0,110" fill="#eb4025"/>
+                    <polygon points="80,105 130,35 30,35" fill="black"/>
+                </g>
+            </svg>
+            <div class="ami-brand-text">
+                American<br>Megatrends
+            </div>
+        </div>
+        <div id="boot-text-container"></div>
+    </div>
+
+    <!-- MAIN BIOS UI -->
+    <div id="bios-ui">
+        <header class="navbar">
+            <div class="brand">
+                <div class="brand-name"><span class="blue">ONUR</span><span class="white"> SÖZERİ</span></div>
+                <span class="b-sub">PRIME B650M-R SYSTEM</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#anasayfa" class="active">Anasayfa</a>
+                <a href="#hakkimda">Hakkımda</a>
+                <a href="#uzmanlik">Uzmanlık</a>
+                <a href="#portfolyo">Portfolyo</a>
+                <a href="#iletisim">İletişim</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- ANASAYFA SECTION -->
+            <section id="anasayfa">
+                <div class="hero-content">
+                    <div class="system-specs-bar">
+                        <span>BIOS_VER: v8094</span>
+                        <span>FREQ: 5.2GHz</span>
+                        <span>NET: GIGABIT_TRX</span>
+                        <span>STATUS: OPTIMIZED</span>
+                    </div>
+                    <h1 class="main-title main-headline">SYSTEM INITIALIZED.</h1>
+                    <p class="sub-headline">Yüksek Güvenlikli OWASP Top 10 Standartları, Güçlü Altyapı Mimarisi ve İleri Seviye Full-Stack Geliştirme Motorları <strong>AKTİF!</strong></p>
+                    
+                    <div class="status-grid">
+                        <div class="status-box">
+                            <i class="fas fa-microchip"></i>
+                            <div class="s-info">CPU Core<br><span>DEVELOPER_MODE</span></div>
+                        </div>
+                        <div class="status-box">
+                            <i class="fas fa-shield-alt"></i>
+                            <div class="s-info">Security Protocol<br><span>OWASP Compliant</span></div>
+                        </div>
+                        <div class="status-box">
+                            <i class="fas fa-network-wired"></i>
+                            <div class="s-info">Network Module<br><span>WIRESHARK_ACTIVE</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HAKKIMDA SECTION -->
+            <section id="hakkimda">
+                <div class="section-title">Hardware&nbsp;Diagnostics&nbsp;(Hakkımda)</div>
+                <div class="bios-panel">
+                    <div class="panel-header">
+                        <span><i class="fas fa-info-circle"></i> SYSTEM INFORMATION</span>
+                        <span>[READ ONLY]</span>
+                    </div>
+                    <table class="info-table">
+                        <tr>
+                            <td class="lbl">Sistem Logu:</td>
+                            <td class="val">Teknolojiye olan tutkumla şekillenen kariyerimde, güvenlik ve performansı aynı potada eritiyorum. Hem siber güvenlik (pentest & ağ analizi) hem de gelişmiş yazılım mimarileri (backend/frontend, sunucu yönetimi) üzerine çalışarak bütüncül ve sarsılmaz altyapılar inşa ediyorum. Analitik düşünce yapımla karmaşık problemleri stabil sistemlere dönüştürürüm.</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">Sürüm Durumu:</td>
+                            <td class="val">Sürekli Öğrenme ve Gelişim (Continuous Integration & Delivery) odaklı yaşam döngüsü.</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">Ek Zihinsel Portlar:</td>
+                            <td class="val">CAD Modelleme (Solidworks), Stratejik Analiz (Satranç), Veri Bilimi Temelleri, Yapay Zeka Prompt Engineering Modülleri Entegre Edildi.</td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+
+            <!-- UZMANLIK SECTION -->
+            <section id="uzmanlik">
+                <div class="section-title">Entegre&nbsp;Modüller&nbsp;(Uzmanlık)</div>
+                <div class="card-grid">
+                    <div class="bios-panel">
+                        <div class="panel-header"><span><i class="fas fa-shield-virus"></i> CYBER SECURITY</span> <span class="status-ok">ACTIVE</span></div>
+                        <ul class="skill-list">
+                            <li>OWASP Top 10 Güvenlik Mimarisini Uygulama</li>
+                            <li>Zaproxy, Metasploit-Framework Operasyonları</li>
+                            <li>Nmap, Burp Suite ile İleri Düzey Sızma Testleri</li>
+                            <li>Wireshark ile Ağ İzleme ve Analiz</li>
+                            <li>airmon-ng, aircrack-ng, aireplay-ng Kullanımı</li>
+                        </ul>
+                    </div>
+
+                    <div class="bios-panel">
+                        <div class="panel-header"><span><i class="fas fa-code"></i> SOFTWARE DEVELOPMENT</span> <span class="status-ok">ACTIVE</span></div>
+                        <ul class="skill-list">
+                            <li>Backend: PHP, ASP.NET Core, Python, C#</li>
+                            <li>Frontend: HTML5, CSS3, Blazor (Modern UI/UX)</li>
+                            <li>Masaüstü: Windows Forms, Console Uygulamaları</li>
+                            <li>Veri Yönetimi: MySQL, MSSQL Veritabanları</li>
+                            <li>İçerik Yönetimi: SEO Uyumlu WordPress Geliştirme</li>
+                        </ul>
+                    </div>
+
+                    <div class="bios-panel">
+                        <div class="panel-header"><span><i class="fas fa-server"></i> IT INFRASTRUCTURE</span> <span class="status-ok">ACTIVE</span></div>
+                        <ul class="skill-list">
+                            <li>İşletim Sistemleri: Linux (Debian, Ubuntu), Windows Server</li>
+                            <li>Sanallaştırma & Donanım: VPS, VDS, Docker Containers</li>
+                            <li>Web Sunucuları: Apache2, Nginx, IIS, Kestrel</li>
+                            <li>Sürekli Dağıtım & Optimizasyon Protokolleri</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PORTFOLYO SECTION -->
+            <section id="portfolyo">
+                <div class="section-title">Dağıtım&nbsp;Birimleri&nbsp;(Portfolyo)</div>
+                <div class="card-grid">
+                    <div class="bios-panel proj-card">
+                        <div class="panel-header"><span>[SECURE_WEB_APP]</span></div>
+                        <div class="proj-body">
+                            <div class="proj-icon"><i class="fas fa-laptop-code"></i></div>
+                            <h4>Kurumsal Web & Blazor</h4>
+                            <p>ASP.NET Core ve Blazor mimarileri ile geliştirilmiş, OWASP uyumlu, yüksek güvenlikli modern sistem çözümleri.</p>
+                        </div>
+                    </div>
+                    <div class="bios-panel proj-card">
+                        <div class="panel-header"><span>[PENTEST_ANALYSIS]</span></div>
+                        <div class="proj-body">
+                            <div class="proj-icon"><i class="fas fa-user-secret"></i></div>
+                            <h4>Sızma Testi & Denetim</h4>
+                            <p>Metasploit, Nmap ve ağ izleme araçlarıyla gerçekleştirilen kapsamlı zaafiyet tarama ve sistem güçlendirme projeleri.</p>
+                        </div>
+                    </div>
+                    <div class="bios-panel proj-card">
+                        <div class="panel-header"><span>[SERVER_ARCHITECT]</span></div>
+                        <div class="proj-body">
+                            <div class="proj-icon"><i class="fas fa-network-wired"></i></div>
+                            <h4>DevOps Sunucu Optimizasyonu</h4>
+                            <p>Nginx, IIS ve Docker ile yapılandırılmış; Debian/Ubuntu tabanlı kesintisiz sunucu & VPS altyapı kurulumları.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- İLETİŞİM SECTION / FOOTER -->
+        <footer id="iletisim">
+            <div class="section-title">Save&nbsp;&&nbsp;Exit&nbsp;(İletişim)</div>
+            <div class="bios-panel">
+                <div class="panel-header"><span><i class="fas fa-hdd"></i> BOOT DEVICE PRIORITY (CONTACT PORTS)</span></div>
+                <p class="exit-desc">Sistem yöneticisi ile bağlantı kurmak için aşağıdaki şifreli bağlantı portlarından birini seçin.</p>
+                
+                <div class="contact-list">
+                    <a href="https://www.linkedin.com/in/onursozeri/" target="_blank">
+                        <i class="fab fa-linkedin"></i> 
+                        [PORT_1] LinkedIn Güvenli Ağına Bağlan (onursozeri)
+                    </a>
+                    <a href="https://github.com/honor345" target="_blank">
+                        <i class="fab fa-github"></i> 
+                        [PORT_2] GitHub Depolarını Analiz Et (honor345)
+                    </a>
+                    <a href="mailto:honor0345@outlook.com">
+                        <i class="fas fa-envelope"></i> 
+                        [PORT_3] Doğrudan E-Posta İletimi (honor0345@outlook.com)
+                    </a>
+                </div>
+
+                <div class="footer-bottom">
+                    PRESS (F10) TO SAVE. (C) 2026 ONUR SÖZERİ. ALL SYSTEMS NOMINAL.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- GSAP for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <script>
+        // --- BOOT SEQUENCE LOGIC ---
+        const bootSequenceText = [
+            "AMIBIOS(C)2026 American Megatrends, Inc.",
+            " ",
+            "ASUS PRIME B650M-R GAMING ACPI BIOS Revision 8094",
+            "CPU: Human Brain Developer Core",
+            "Speed: 4500MHz",
+            " ",
+            "Total Memory: Exabytes of Infinite Learning Capacity",
+            " ",
+            "USB Devices total: 0 Drive, 1 Keyboard, 1 Mouse, 0 Hub",
+            " ",
+            "Detected ATA/ATAPI Devices...",
+            "SATA6G_1:   SYSTEM ARCHITECTURE",
+            "SATA6G_2:   CYBER SECURITY MODULE",
+            "SATA6G_3:   WEB DEVELOPMENT DRIVE",
+            "SATA6G_4:   IT INFRASTRUCTURE",
+            " ",
+            "Loading Initial Protocols...",
+            "> Deploying Apache2, Nginx, IIS, Kestrel, Docker configs...",
+            "> Equipping Zaproxy, Metasploit, Nmap, Burp Suite, Wireshark...",
+            " ",
+            "System fully operational. All drivers installed successfully.",
+            "Please enter setup to recover BIOS setting.",
+            "When RAID configuration was built, ensure to set SATA Configuration to RAID mode.",
+            "Press F1 to Run SETUP"
+        ];
+
+        const bootUI = document.getElementById('boot-screen');
+        const biosUI = document.getElementById('bios-ui');
+        const bootTextContainer = document.getElementById('boot-text-container');
+
+        async function runBootSequence() {
+            document.body.style.overflow = "hidden"; // Lock scroll initially
+            
+            for (let i=0; i<bootSequenceText.length; i++) {
+                let currentText = bootSequenceText[i];
+                
+                if(currentText === " ") {
+                    bootTextContainer.appendChild(document.createElement('br'));
+                } else {
+                    let line = document.createElement('div');
+                    line.style.marginBottom = "5px";
+                    line.innerHTML = currentText;
+                    bootTextContainer.appendChild(line);
+                }
+                
+                bootUI.scrollTop = bootUI.scrollHeight;
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            // ONUR SÖZERİ loading bios efekti
+            let loadingContainer = document.createElement('div');
+            loadingContainer.style.marginTop = "20px";
+            loadingContainer.style.color = "var(--bios-cyan)";
+            loadingContainer.style.fontWeight = "bold";
+            loadingContainer.style.whiteSpace = "pre-wrap";
+            bootTextContainer.appendChild(loadingContainer);
+
+            let baseText = "ONUR SÖZERİ BIOS Yükleniyor [";
+            let loadingBar = "";
+            let maxSteps = 20;
+
+            for(let step=1; step<=maxSteps; step++) {
+                loadingBar += "#";
+                let spaces = " ".repeat(maxSteps - step);
+                loadingContainer.innerHTML = baseText + loadingBar + spaces + "] " + (step * 5) + "%";
+                bootUI.scrollTop = bootUI.scrollHeight;
+                await new Promise(r => setTimeout(r, 80));
+            }
+            
+            // Render blinking cursor at the end
+            let cursor = document.createElement('span');
+            cursor.className = "boot-cursor";
+            bootTextContainer.appendChild(cursor);
+            
+            // Wait a moment then transition to BIOS
+            await new Promise(r => setTimeout(r, 800));
+            
+            bootUI.style.transition = "opacity 0.5s ease";
+            bootUI.style.opacity = '0';
+            
+            setTimeout(() => {
+                bootUI.style.display = 'none';
+                biosUI.style.display = 'block';
+                document.body.style.overflow = "auto";
+                
+                // Init GSAP animations after unhide
+                initAnimations();
+            }, 600);
+        }
+
+        window.onload = runBootSequence;
+
+        // --- BIOS UI ANIMATIONS & LOGIC ---
+        function initAnimations() {
+            gsap.registerPlugin(ScrollTrigger);
+
+            // Flash effect for entrance
+            gsap.from(biosUI, { opacity: 0, duration: 1.5, ease: "power2.out" });
+
+            // Animate BIOS Panels appearing
+            gsap.utils.toArray('.bios-panel').forEach(panel => {
+                gsap.from(panel, {
+                    scrollTrigger: {
+                        trigger: panel,
+                        start: "top 85%",
+                        toggleActions: "play none none reverse"
+                    },
+                    y: 50,
+                    opacity: 0,
+                    duration: 0.8,
+                    ease: "power3.out"
+                });
+            });
+
+            // Animate Section Titles
+            gsap.utils.toArray('.section-title').forEach(title => {
+                gsap.from(title, {
+                    scrollTrigger: {
+                        trigger: title,
+                        start: "top 90%",
+                        toggleActions: "play none none reverse"
+                    },
+                    x: -60,
+                    opacity: 0,
+                    duration: 0.6,
+                    ease: "power3.out"
+                });
+            });
+
+            // Navbar Header Scroll State
+            const header = document.querySelector('header.navbar');
+            const sections = document.querySelectorAll("section, footer");
+            const navLinks = document.querySelectorAll(".nav-links a");
+
+            window.addEventListener("scroll", () => {
+                // Header style update
+                if(window.scrollY > 40) {
+                    header.style.background = "rgba(10, 14, 19, 0.98)";
+                    header.style.boxShadow = "0 10px 40px rgba(0, 195, 255, 0.15)";
+                } else {
+                    header.style.background = "rgba(9, 14, 20, 0.95)";
+                    header.style.boxShadow = "none";
+                }
+
+                // Active Link Tracking
+                let current = "";
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (scrollY >= sectionTop - 200) {
+                        current = section.getAttribute("id");
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove("active");
+                    if (link.getAttribute("href").includes(current)) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
