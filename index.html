@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Onur Sözeri - Siber Güvenlik Uzmanı & Full Stack Geliştirici - UEFI BIOS Advanced Mode">
+    <title>Onur Sözeri | UEFI BIOS Utility - Advanced Mode</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Base Reset */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        
+        /* Custom Asus BIOS Cursor Configuration */
+        body, a, button, .tab, .bios-row, .adv-shortcuts span {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M5 5l16 9-6 2 4 8-3 2-4-8-6 6V5z" fill="%23000" stroke="%23fff" stroke-width="1.5" stroke-linejoin="round"/></svg>') 5 5, auto !important;
+        }
+
+        body {
+            background-color: #000;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #031e36 0%, #000 80%),
+                repeating-linear-gradient( 45deg, transparent, transparent 40px, rgba(0, 214, 192, 0.03) 40px, rgba(0, 214, 192, 0.03) 42px );
+            color: #fff;
+            margin: 0; padding: 0; overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; width: 100vw;
+        }
+
+        /* ---------------- BOOT SCREEN ---------------- */
+        #boot-screen {
+            position: fixed; inset: 0; background: #000; color: #a8b2b8;
+            font-family: 'Share Tech Mono', monospace; font-size: 18px;
+            z-index: 9999; padding: 40px; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column; width: 100vw; height: 100vh;
+        }
+        .ami-title { display: flex; align-items: center; gap: 30px; margin-bottom: 40px; }
+        .ami-brand-text {
+            font-family: 'Times New Roman', Times, serif; font-size: 55px;
+            color: #ffffff; line-height: 0.95; font-weight: normal;
+        }
+        .boot-cursor {
+            display: inline-block; width: 12px; height: 18px; background: #a8b2b8;
+            animation: blink 1s step-end infinite; vertical-align: bottom;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* ---------------- BIOS UI (ADVANCED MODE) ---------------- */
+        #bios-ui {
+            display: none; /* revealed by JS */
+            flex-direction: column;
+            width: 95vw; height: 92vh; max-width: 1600px;
+            background: #0f1011;
+            box-shadow: 0 0 35px rgba(0, 214, 192, 0.5), inset 0 0 15px rgba(0, 214, 192, 0.2);
+            border: 1px solid rgba(0, 214, 192, 0.6);
+            border-radius: 2px;
+            position: relative; overflow: hidden;
+        }
+
+        /* Header UI */
+        .adv-header {
+            background: #0a0a0c;
+            border-bottom: 1px solid #1a2c3a;
+            padding: 10px 25px 0 25px;
+        }
+
+        .adv-top { display: flex; align-items: center; justify-content: space-between; }
+        .adv-logo-area { display: flex; align-items: center; gap: 10px; }
+        .adv-logo { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 1.5px; color: #fff;}
+        .adv-title { font-size: 15px; color: #e4eff5; font-weight: 600; margin-left: 5px; }
+        
+        .adv-toolbar { display: flex; align-items: center; gap: 15px; font-size: 12px; color: #b0c4de; margin-top: 5px;}
+        .adv-date-col { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 15px; font-weight: 600; }
+        #adv-time { font-size: 18px; color: #fff; font-weight: bold; margin-left: 5px; font-family: 'Share Tech Mono', monospace; }
+        .toolbar-group { display: flex; gap: 15px; margin-left: auto; align-items: center;}
+        .toolbar-group > span { display: flex; align-items: center; gap: 5px; cursor: default; }
+
+        /* TABS */
+        .adv-tabs {
+            display: flex; margin-top: 20px; gap: 20px;
+        }
+        .tab {
+            font-size: 15px; color: #e4eff5; cursor: pointer; padding-bottom: 6px;
+            font-weight: 600; transition: border 0.1s, color 0.1s; border-bottom: 2px solid transparent;
+        }
+        .tab.active { color: #00d6c0; border-bottom: 2px solid #00d6c0; text-shadow: 0 0 5px rgba(0, 214, 192, 0.3);}
+        .tab:hover:not(.active) { color: #80ebd6; }
+
+        /* Layout Content */
+        .adv-content-wrapper { display: flex; flex-grow: 1; overflow: hidden; }
+
+        /* Left Main Panel */
+        .adv-main-area {
+            flex-grow: 1; display: flex; flex-direction: column; border-right: 1px solid #1a2c3a;
+            position: relative; background: #121314; overflow: hidden;
+        }
+        
+        .tab-page { flex-grow: 1; padding: 20px 30px; display: none; overflow-y: auto; }
+        .tab-page.active { display: block; }
+        
+        /* Bios Row Elements */
+        .bios-section-title {
+            color: #008f80; font-weight: 600; font-size: 13px; margin: 20px 0 10px 0;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .bios-section-title:first-child { margin-top: 0; }
+        
+        .bios-row {
+            display: flex; align-items: center; padding: 8px 10px; font-size: 14px; margin-bottom: 2px;
+            cursor: pointer; border-radius: 2px; transition: 0.1s; color: #b0c4de;
+        }
+        .bios-row:hover, .bios-row.active-row { background: #263238; color: #ffffff; }
+        
+        .bios-label { width: 35%; font-weight: 500; pointer-events: none;}
+        .bios-value { width: 65%; font-weight: 600; pointer-events: none; }
+        .bios-row:hover .bios-value, .bios-row.active-row .bios-value { color: #fff; }
+        
+        /* To mimic Asus dropdown / editable boxes */
+        .input-like {
+            background: #111; border: 1px solid #2d3b45; padding: 4px 10px; border-radius: 2px; 
+            display: inline-block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .bios-row:hover .input-like, .bios-row.active-row .input-like { border-color: #556c7a; }
+
+        /* Links styling */
+        .bios-row a { color: #fff; text-decoration: none; display:block; width:100%; pointer-events: auto;}
+        .bios-row a:hover { text-decoration: underline; }
+
+        /* Info Box */
+        .adv-info-box {
+            border-top: 1px solid #1a2c3a; padding: 15px; height: 100px; min-height: 100px;
+            font-size: 13px; color: #b0c4de; background: #0c0d0f; display: flex; gap: 15px;
+            line-height: 1.5; pointer-events: none;
+        }
+        .adv-info-box i { font-size: 20px; color: #fff; margin-top: 2px; }
+
+        /* Sidebar Hardware Monitor */
+        .adv-sidebar {
+            width: 250px; background: #0c0d0f; padding: 15px 20px; overflow-y: auto;
+        }
+        .sidebar-title { color: #fff; font-weight: 600; font-size: 14px; margin-bottom: 25px; display: flex; align-items: center; gap: 8px;}
+        .sidebar-title i { font-size: 16px; color: #b0c4de; }
+
+        .s-head { color: #00d6c0; font-size: 13px; font-weight: 600; margin: 15px 0 8px 0; }
+        .s-head:first-child { margin-top: 0; }
+        .s-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+        .s-row span:first-child { color: #8aa4ba; }
+        .s-row span:last-child { color: #fff; font-weight: 600;}
+
+        /* Footer Layer */
+        .adv-footer {
+            border-top: 1px solid #1a2c3a; background: #08080a; padding: 10px 25px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .adv-version { font-size: 12px; color: #5a7b9c; font-family: 'Share Tech Mono', monospace; }
+        .adv-shortcuts { font-size: 12px; color: #b0c4de; font-weight: 600;}
+        .adv-shortcuts span { display: inline-flex; align-items: center; gap: 5px; margin-left: 20px; cursor: pointer; transition: 0.2s;}
+        .adv-shortcuts span:hover { color: #fff; }
+
+        /* Scrollbars Custom */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0c; }
+        ::-webkit-scrollbar-thumb { background: #1a2c3a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00d6c0; }
+    </style>
+</head>
+<body>
+
+    <!-- BOOT SEQUENCE -->
+    <div id="boot-screen">
+        <div class="ami-title">
+            <svg width="220" height="130" viewBox="0 0 160 110">
+                <defs>
+                    <clipPath id="stripeClip">
+                        <rect y="10" width="160" height="6" />
+                        <rect y="20" width="160" height="6" />
+                        <rect y="30" width="160" height="6" />
+                        <rect y="40" width="160" height="6" />
+                        <rect y="50" width="160" height="6" />
+                        <rect y="60" width="160" height="6" />
+                        <rect y="70" width="160" height="6" />
+                        <rect y="80" width="160" height="6" />
+                        <rect y="90" width="160" height="6" />
+                        <rect y="100" width="160" height="6" />
+                    </clipPath>
+                </defs>
+                <g clip-path="url(#stripeClip)">
+                    <polygon points="80,0 160,110 0,110" fill="#eb4025"/>
+                    <polygon points="80,105 130,35 30,35" fill="black"/>
+                </g>
+            </svg>
+            <div class="ami-brand-text">
+                American<br>Megatrends
+            </div>
+        </div>
+        <div id="boot-text-container"></div>
+    </div>
+
+    <!-- ADVANCED MODE UI -->
+    <div id="bios-ui">
+        
+        <div class="adv-header">
+            <div class="adv-top">
+                <div class="adv-logo-area">
+                    <span class="adv-logo">ONUR SÖZERİ</span>
+                    <span class="adv-title">UEFI BIOS Utility - Advanced Mode</span>
+                </div>
+                <div class="adv-toolbar">
+                    <div class="adv-date-col">
+                        <span id="adv-date">07/24/2026</span>
+                        <span id="adv-day" style="font-size:10px; opacity:0.8;">Wednesday</span>
+                    </div>
+                    <span id="adv-time">18:13:00</span>
+                    
+                    <div class="toolbar-group">
+                        <span><i class="fas fa-globe"></i> English</span>
+                        <span><i class="fas fa-star"></i> MyFavorite(F3)</span>
+                        <span><i class="fas fa-fan"></i> Qfan(F6)</span>
+                        <span><i class="fas fa-search"></i> Search(F9)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="adv-tabs">
+                <div class="tab active" data-target="tab-hakkimda">Hakkımda</div>
+                <div class="tab" data-target="tab-portfolyo">Portfolyo</div>
+                <div class="tab" data-target="tab-yetkinlikler">Yetkinlikler</div>
+                <div class="tab" data-target="tab-iletisim">İletişim</div>
+                <div class="tab" data-target="tab-exit">Exit</div>
+            </div>
+        </div>
+
+        <div class="adv-content-wrapper">
+            <div class="adv-main-area">
+                
+                <!-- HAKKIMDA TAB -->
+                <div class="tab-page active" id="tab-hakkimda">
+                    <div class="bios-section-title">BIOS Information</div>
+                    <div class="bios-row active-row" data-info="Ana sistem mimarı, siber güvenlik analisti ve Full Stack geliştirici referansı.">
+                        <div class="bios-label">Developer Core Name</div>
+                        <div class="bios-value">Onur Sözeri</div>
+                    </div>
+                    <div class="bios-row" data-info="Teknolojiye olan tutkumla şekillenen kariyerimde, güvenlik ve performansı aynı potada eritiyorum.">
+                        <div class="bios-label">System Architecture</div>
+                        <div class="bios-value">Siber Güvenlik Uzmanı & Full Stack</div>
+                    </div>
+                    <div class="bios-row" data-info="Eğitim ve meslek yolculuğu süreçleri (Continuous Integration & Delivery) odaklı yaşam döngüsüyle güncellenir.">
+                        <div class="bios-label">Build Environment</div>
+                        <div class="bios-value">CI/CD Odaklı Kariyer Gelişimi</div>
+                    </div>
+                    
+                    <div class="bios-section-title">Processor Information</div>
+                    <div class="bios-row" data-info="Bu alan temel mantık akışı ve felsefemin dökümüdür. Tıklayıp detayları gözden geçirebilirsiniz.">
+                        <div class="bios-label">Analitik & Optimizasyon Mantığı</div>
+                        <div class="bios-value">Karmaşık problemleri stabil sistemlere dönüştürürüm.</div>
+                    </div>
+                    <div class="bios-row" data-info="Yüksek düzeyde çoklu işlem (multi-threading) becerileri: Pentest testlerini hazırlarken, backend mimarilerini eşzamanlı olarak geliştirme yetisi.">
+                        <div class="bios-label">Execution Strategy</div>
+                        <div class="bios-value">Bütüncül ve sarsılmaz altyapı inşası</div>
+                    </div>
+                    
+                    <div class="bios-section-title">Memory Information</div>
+                    <div class="bios-row" data-info="Data Science, Prompt Engineering, CAD Modelleme (Solidworks) gibi farklı yetkinlik veri tabanlarını hafızada tutar.">
+                        <div class="bios-label">Ek Zihinsel Portlar</div>
+                        <div class="bios-value">Yapay Zeka & Çok Yönlü Analiz Aktif</div>
+                    </div>
+                </div>
+
+                <!-- PORTFOLYO TAB -->
+                <div class="tab-page" id="tab-portfolyo">
+                    <div class="bios-section-title">Projeler & Dağıtım Birimleri Configuration</div>
+                    <div class="bios-row" data-info="ASP.NET Core ve Blazor mimarileri ile geliştirilmiş, OWASP uyumlu, yüksek güvenlikli modern web çözümleri.">
+                        <div class="bios-label">Kurumsal Web & Blazor Sistemleri</div>
+                        <div class="bios-value input-like">[SECURE_WEB_APP] - Enabled</div>
+                    </div>
+                    <div class="bios-row" data-info="Metasploit, Nmap ve Wireshark kullanılarak gerçekleştirilen detaylı zaafiyet tarama, sızma testleri ve güvenlik raporlamaları.">
+                        <div class="bios-label">Sızma Testi & Pentest Analizi</div>
+                        <div class="bios-value input-like">[PENTEST_ANALYSIS] - Enabled</div>
+                    </div>
+                    <div class="bios-row" data-info="Nginx, IIS ve Docker ile yapılandırılmış; Debian/Ubuntu tabanlı kesintisiz ve yüksek performanslı sunucu kurulumları.">
+                        <div class="bios-label">DevOps & Sunucu Optimizasyonu</div>
+                        <div class="bios-value input-like">[SERVER_ARCHITECT] - Enabled</div>
+                    </div>
+                </div>
+
+                <!-- YETKİNLİKLER TAB -->
+                <div class="tab-page" id="tab-yetkinlikler">
+                    <div class="bios-section-title">Cyber Security Modules Configurations</div>
+                    <div class="bios-row" data-info="Sistem Güvenliği Çerçevesi Aktif: OWASP Top 10 prensipleri doğrultusunda uygulama güvenleştirme süreçleri.">
+                        <div class="bios-label">OWASP Top 10 Framework</div>
+                        <div class="bios-value input-like">Güvenlik Mimarisini Uygulama (Active)</div>
+                    </div>
+                    <div class="bios-row" data-info="Kapsamlı Network Analizi araçları yüklendi. (Zaproxy, Metasploit, Nmap, Burp Suite, Wireshark, airmon/crack-ng)">
+                        <div class="bios-label">Pentest & Ağ Test Portları</div>
+                        <div class="bios-value input-like">Ağ İzleme & İleri Sızma Testleri (Active)</div>
+                    </div>
+                    
+                    <div class="bios-section-title">Full Stack Development Platform</div>
+                    <div class="bios-row" data-info="Kullanılan aktif script dilleri ve kütüphaneler: PHP, ASP.NET Core, Python, C#, HTML5, CSS3, Blazor. Windows Form ve Console dahildir.">
+                        <div class="bios-label">Yazılım Geliştirme Temeli</div>
+                        <div class="bios-value input-like">Backend & Frontend SDK (Loaded)</div>
+                    </div>
+                    <div class="bios-row" data-info="WordPress sistemi kurma, eklenti optimizasyonları ve Arama Motoru Optimizasyonu (SEO) uyumlu web inşası.">
+                        <div class="bios-label">İçerik Yönetimi & SEO Uyum</div>
+                        <div class="bios-value input-like">WP Development & SEO Analizi</div>
+                    </div>
+                    
+                    <div class="bios-section-title">IT Infrastructure & Server Settings</div>
+                    <div class="bios-row" data-info="İşletim Sistemleri (Debian, Ubuntu, Windows Server), Veritabanları (MySQL, MSSQL). Sunucu yazılımları ve sanallaştırma.">
+                        <div class="bios-label">Altyapı Sunucuları & DB</div>
+                        <div class="bios-value input-like">VPS/VDS, Docker, Apache/IIS (Running)</div>
+                    </div>
+                </div>
+
+                <!-- ILETISIM TAB -->
+                <div class="tab-page" id="tab-iletisim">
+                    <div class="bios-section-title">Communication Ports Configuration</div>
+                    <div class="bios-row" data-info="Profesyonel iş ağım. Buradan benimle iletişime geçebilir, yetkinliklerimi ve sertifikalarımı inceleyebilirsiniz. Tıklanabilir link.">
+                        <div class="bios-label">LinkedIn Port</div>
+                        <div class="bios-value input-like"><a href="https://www.linkedin.com/in/onursozeri/" target="_blank">linkedin.com/in/onursozeri/ (OPEN)</a></div>
+                    </div>
+                    <div class="bios-row" data-info="Açık kaynak kod depolarım. Proje detaylarını ve katkılarımı görmek için GitHub portunu kontrol edin. Tıklanabilir link.">
+                        <div class="bios-label">GitHub Source Code Port</div>
+                        <div class="bios-value input-like"><a href="https://github.com/honor345" target="_blank">github.com/honor345 (OPEN)</a></div>
+                    </div>
+                    <div class="bios-row" data-info="Doğrudan ve şifreli SMTP e-posta iletişim kanalı. Buraya tıklayın veya e-postayı dilediğiniz istemciden gönderin.">
+                        <div class="bios-label">SMTP E-Mail Address</div>
+                        <div class="bios-value input-like"><a href="mailto:honor0345@outlook.com">honor0345@outlook.com (DIRECT)</a></div>
+                    </div>
+                </div>
+
+                <!-- EXIT TAB -->
+                <div class="tab-page" id="tab-exit">
+                    <div class="bios-section-title">Save & Exit Configuration</div>
+                    <div class="bios-row exit-row" data-info="Değişiklikleri kaydeder ve kariyer işbirliklerini başlatmak üzere sistem kurulumuna geçer.">
+                        <div class="bios-label" style="color:#fff;">Save Changes & Reset</div>
+                        <div class="bios-value"></div>
+                    </div>
+                    <div class="bios-row exit-row" data-info="Yaptığınız seçimleri reddeder, sistemdeki mevcut bilgileri koruyarak çıkış yapar.">
+                        <div class="bios-label" style="color:#fff;">Discard Changes & Exit</div>
+                        <div class="bios-value"></div>
+                    </div>
+                    <div class="bios-row exit-default" data-info="Tüm potansiyeli maksimize edilmiş (OWASP entegre, Full Stack optimize) fabrika ayarlarına döner.">
+                        <div class="bios-label" style="color:#fff;">Load Optimized Defaults</div>
+                        <div class="bios-value"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom Hint Box -->
+                <div class="adv-info-box">
+                    <div><i class="fas fa-info-circle"></i></div>
+                    <span id="info-text">Menüler arasında dolaşın. İlgili içeriğin detayları burada görüntülenecektir.</span>
+                </div>
+            </div>
+            
+            <div class="adv-sidebar">
+                <div class="sidebar-title"><i class="fas fa-tv"></i> Hardware Monitor</div>
+                
+                <div class="sidebar-block">
+                    <div class="s-head">CPU (Developer Core)</div>
+                    <div class="s-row"><span>Frequency</span><span>4500 MHz</span></div>
+                    <div class="s-row"><span>Temperature</span><span>43°C</span></div>
+                    <div class="s-row"><span>BCLK</span><span>100.00 MHz</span></div>
+                    <div class="s-row"><span>Core Voltage</span><span>1.376 V</span></div>
+                    <div class="s-row"><span>Ratio</span><span>45.0x</span></div>
+                </div>
+
+                <div class="sidebar-block">
+                    <div class="s-head">Memory (Brain Data)</div>
+                    <div class="s-row"><span>Frequency</span><span>5200 MHz</span></div>
+                    <div class="s-row"><span>Capacity</span><span>16384 MB</span></div>
+                    <div class="s-row"><span>MC Volt</span><span>1.120 V</span></div>
+                </div>
+
+                <div class="sidebar-block">
+                    <div class="s-head">Voltage Levels</div>
+                    <div class="s-row"><span>+12V</span><span>11.980 V</span></div>
+                    <div class="s-row"><span>+5V</span><span>5.100 V</span></div>
+                    <div class="s-row"><span>+3.3V</span><span>3.424 V</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="adv-footer">
+            <div class="adv-version">Version 2.22.1284 Copyright (C) 2026 ONUR SÖZERİ. All Rights Reserved.</div>
+            <div class="adv-shortcuts">
+                <span><i class="fas fa-exchange-alt"></i> EzMode(F7)</span>
+                <span><i class="fas fa-question-circle"></i> Hot Keys</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Datetime Setup
+        function updateTime() {
+            const dt = new Date();
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            
+            document.getElementById("adv-date").innerText = `${m}/${d}/${y}`;
+            document.getElementById("adv-day").innerText = days[dt.getDay()];
+            
+            const h = String(dt.getHours()).padStart(2, '0');
+            const min = String(dt.getMinutes()).padStart(2, '0');
+            const sec = String(dt.getSeconds()).padStart(2, '0');
+            document.getElementById("adv-time").innerText = `${h}:${min}:${sec}`;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Tabs and Selection Logic
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.getAttribute('data-target')).classList.add('active');
+                
+                // Select first row of new tab by default
+                const targetPage = document.getElementById(tab.getAttribute('data-target'));
+                const firstRow = targetPage.querySelector('.bios-row');
+                
+                document.querySelectorAll('.bios-row').forEach(r => r.classList.remove('active-row'));
+                if(firstRow) {
+                    firstRow.classList.add('active-row');
+                    const info = firstRow.getAttribute('data-info');
+                    document.getElementById('info-text').innerText = info ? info : " ";
+                }
+            });
+        });
+
+        document.querySelectorAll('.bios-row').forEach(row => {
+            // Hover logic updates the text box immediately in Advanced mode
+            row.addEventListener('mouseenter', () => {
+                if(!row.classList.contains('active-row')) {
+                    document.querySelectorAll('.bios-row').forEach(r => r.classList.remove('active-row'));
+                    row.classList.add('active-row');
+                    const info = row.getAttribute('data-info');
+                    document.getElementById('info-text').innerText = info ? info : " ";
+                }
+            });
+            
+            // Click logic
+            row.addEventListener('click', (e) => {
+                // Ignore clicks if they fall exactly on the real <a> tag, handled by browser natively
+                if(e.target.tagName !== 'A' && row.classList.contains('exit-row')) {
+                    alert("Kayıt Edildi ve Sistem Tekrar Başlatılıyor... (Simülasyon)");
+                    location.reload();
+                } else if (e.target.tagName !== 'A' && row.classList.contains('exit-default')) {
+                    alert("Fabrika ayarları yüklendi. (Simülasyon)");
+                } else if(e.target.tagName !== 'A' && row.querySelector('a')){
+                    // if user clicks the row but not the link text exactly, open link
+                    window.open(row.querySelector('a').href, row.querySelector('a').target || '_self');
+                }
+            });
+        });
+
+        // --- BOOT SEQUENCE LOGIC ---
+        const bootSequenceText = [
+            "AMIBIOS(C)2026 American Megatrends, Inc.",
+            " ",
+            "ASUS PRIME B650M-R ACPI BIOS Revision 8094",
+            "CPU: Human Brain Developer Core",
+            "Speed: 4500MHz",
+            " ",
+            "Total Memory: Exabytes of Infinite Learning Capacity",
+            " ",
+            "USB Devices total: 0 Drive, 1 Keyboard, 1 Mouse, 0 Hub",
+            " ",
+            "Detected ATA/ATAPI Devices...",
+            "SATA6G_1:   SYSTEM ARCHITECTURE",
+            "SATA6G_2:   CYBER SECURITY MODULE",
+            "SATA6G_3:   WEB DEVELOPMENT DRIVE",
+            "SATA6G_4:   IT INFRASTRUCTURE",
+            " ",
+            "Loading Initial Protocols...",
+            "> Deploying Apache2, Nginx, IIS, Kestrel, Docker configs...",
+            "> Equipping Zaproxy, Metasploit, Nmap, Burp Suite, Wireshark...",
+            " ",
+            "System fully operational. All drivers installed successfully.",
+            "Please enter setup to recover BIOS setting.",
+            "When RAID configuration was built, ensure to set SATA Configuration to RAID mode.",
+            "Press F1 to Run SETUP"
+        ];
+
+        const bootUI = document.getElementById('boot-screen');
+        const biosUI = document.getElementById('bios-ui');
+        const bootTextContainer = document.getElementById('boot-text-container');
+
+        async function runBootSequence() {
+            document.body.style.overflow = "hidden";
+            
+            for (let i=0; i<bootSequenceText.length; i++) {
+                let currentText = bootSequenceText[i];
+                if(currentText === " ") {
+                    bootTextContainer.appendChild(document.createElement('br'));
+                } else {
+                    let line = document.createElement('div');
+                    line.style.marginBottom = "5px";
+                    line.innerHTML = currentText;
+                    bootTextContainer.appendChild(line);
+                }
+                bootUI.scrollTop = bootUI.scrollHeight;
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            // Loading bios efekti
+            let loadingContainer = document.createElement('div');
+            loadingContainer.style.marginTop = "20px";
+            loadingContainer.style.color = "#00d6c0";
+            loadingContainer.style.fontWeight = "bold";
+            loadingContainer.style.whiteSpace = "pre-wrap";
+            bootTextContainer.appendChild(loadingContainer);
+
+            let baseText = "ONUR SÖZERİ BIOS Yükleniyor [";
+            let loadingBar = "";
+            let maxSteps = 20;
+
+            for(let step=1; step<=maxSteps; step++) {
+                loadingBar += "#";
+                let spaces = " ".repeat(maxSteps - step);
+                loadingContainer.innerHTML = baseText + loadingBar + spaces + "] " + (step * 5) + "%";
+                bootUI.scrollTop = bootUI.scrollHeight;
+                await new Promise(r => setTimeout(r, 60));
+            }
+            
+            let cursor = document.createElement('span');
+            cursor.className = "boot-cursor";
+            bootTextContainer.appendChild(cursor);
+            
+            await new Promise(r => setTimeout(r, 700));
+            
+            bootUI.style.transition = "opacity 0.6s ease";
+            bootUI.style.opacity = '0';
+            
+            setTimeout(() => {
+                bootUI.style.display = 'none';
+                biosUI.style.display = 'flex';
+                // Trigger hover on first row automatically
+                document.querySelector('.bios-row').dispatchEvent(new Event('mouseenter'));
+            }, 600);
+        }
+        
+        window.onload = runBootSequence;
+    </script>
+</body>
+</html>
